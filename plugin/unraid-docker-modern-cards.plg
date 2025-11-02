@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.8" category="GUI" min="6.10.0">
+<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.9" category="GUI" min="6.10.0">
   <AUTHOR>JamesDAdAMS</AUTHOR>
-  <VERSION>1.0.8</VERSION>
+  <VERSION>1.0.9</VERSION>
   <CATEGORY>GUI</CATEGORY>
   <NAME>Unraid Docker Modern Cards</NAME>
   <CHANGES>Initial release converting Tampermonkey script into native plugin</CHANGES>
@@ -11,10 +11,10 @@
       <INLINE><![CDATA[
 <?php
 $pluginBase = '/plugins/unraid-docker-modern-cards';
-error_log('UDMC 1.0.8: include executed, injecting assets v11');
-echo "\n<!-- UDMC assets injected (global v11) -->\n";
-echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=11\">\n";
-echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=11\" defer></script>\n";
+error_log('UDMC 1.0.9: include executed, injecting assets v12');
+echo "\n<!-- UDMC assets injected (global v12) -->\n";
+echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=12\">\n";
+echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=12\" defer></script>\n";
 ?>
 ]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
@@ -22,18 +22,18 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=11\" defer></scri
 
     <!-- README: visible dans Plugins et pour confirmer la présence du dossier -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/README.md">
-      <INLINE>Unraid Docker Modern Cards - v1.0.8</INLINE>
+      <INLINE>Unraid Docker Modern Cards - v1.0.9</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
     <!-- Trace install: crée un marqueur et loggue l’arborescence -->
-    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/.udmc-install-1.0.8">
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/.udmc-install-1.0.9">
       <INLINE>installed</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
       <RUN>
-logger -t UDMC "Installing UDMC 1.0.8"
+logger -t UDMC "Installing UDMC 1.0.9"
 mkdir -p /usr/local/emhttp/plugins/unraid-docker-modern-cards 2&gt;/dev/null
-echo "udmc-installed-1.0.8" &gt; /usr/local/emhttp/plugins/unraid-docker-modern-cards/test-installed.txt
+echo "udmc-installed-1.0.9" &gt; /usr/local/emhttp/plugins/unraid-docker-modern-cards/test-installed.txt
 if [ -d /usr/local/emhttp/plugins/unraid-docker-modern-cards ]; then
   logger -t UDMC "Listing /usr/local/emhttp/plugins/unraid-docker-modern-cards"
   ls -la /usr/local/emhttp/plugins/unraid-docker-modern-cards | logger -t UDMC
@@ -49,7 +49,7 @@ fi
 
     <!-- Diagnostics: endpoints testables via le navigateur -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/ping.txt">
-      <INLINE>UDMC ping ok; version=1.0.8; cache=v11</INLINE>
+      <INLINE>UDMC ping ok; version=1.0.9; cache=v12</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/diag.html">
@@ -64,7 +64,7 @@ fi
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/version.txt">
-      <INLINE>UDMC version=1.0.8 cache=v11</INLINE>
+      <INLINE>UDMC version=1.0.9 cache=v12</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
@@ -110,7 +110,7 @@ fi
       <INLINE><![CDATA[
 (function(){
   'use strict';
-  console.log('[DockerCards] UDMC JS v11 loaded');
+  console.log('[DockerCards] UDMC JS v12 loaded');
 
   function findDockerTbody(){
     const queries = [

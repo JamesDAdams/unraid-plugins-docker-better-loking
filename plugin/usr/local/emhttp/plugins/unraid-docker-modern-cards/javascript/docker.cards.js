@@ -1,38 +1,62 @@
 (function(){
   'use strict';
-  const log = (...a)=>console.debug('[DockerCards]',...a);
+  console.log('[DockerCards] UDMC JS v12 loaded');
+
+  function findDockerTbody(){
+    const queries = [
+      'tbody#docker_list',
+      '#docker_list tbody',
+      'table#docker_list tbody',
+      'table#docker_table tbody',
+      'table[id*="docker"] tbody',
+      'table[data-view="docker"] tbody',
+      'table tbody#docker'
+    ];
+    for (const q of queries){
+      const el = document.querySelector(q);
+      if (el) return el;
+    }
+    const tables = Array.from(document.querySelectorAll('table'));
+    for (const t of tables){
+      const headTxt = (t.querySelector('thead')?.textContent || '').toLowerCase();
+      if (headTxt.includes('docker')) return t.querySelector('tbody') || null;
+    }
+    return null;
+  }
 
   function parseContainerRow(row){
     const columns = row.querySelectorAll('td');
-    if (!columns || columns.length < 10) return null;
-    const appCell = columns[0];
+    if (!columns || columns.length === 0) return null;
+    const appCell = columns[0] || row.querySelector('td');
+    if (!appCell) return null;
+
     const img = appCell.querySelector('img');
-    const logo = img ? img.src : '';
-    const nameLink = appCell.querySelector('.appname a');
-    const name = nameLink ? nameLink.textContent.trim() : (appCell.textContent||'').trim();
-    const stateText = appCell.querySelector('.state');
-    const state = stateText ? stateText.textContent.trim() : '';
+    const logo = img?.src || '';
+    const nameLink = appCell.querySelector('.appname a, a[href^="/docker/"], a');
+    const name = (nameLink?.textContent || appCell.textContent || '').trim();
+
+    const stateEl = appCell.querySelector('.state, .status, .started, .stopped') || row.querySelector('.state, .status');
+    const state = (stateEl?.textContent || '').trim();
 
     let updateText = 'other';
-    const updateSpan = columns[1] && columns[1].querySelector('span');
-    if (updateSpan) updateText = (updateSpan.textContent||'').trim().toLowerCase();
+    const updateEl = columns[1]?.querySelector('span, i, .label') || row.querySelector('[data-status], .label.update, td:nth-child(2) span');
+    if (updateEl) updateText = (updateEl.textContent || '').trim().toLowerCase();
 
-    const network = (columns[2]?.textContent||'').trim();
-    const ip = (columns[3]?.textContent||'').trim();
-    const port = (columns[4]?.textContent||'').trim();
+    const network = (columns[2]?.textContent || '').trim();
+    const ip = (columns[3]?.textContent || '').trim();
+    const port = (columns[4]?.textContent || '').trim();
 
-    const cpuSpan = columns[7]?.querySelector('span[class^="cpu-"]');
-    const memSpan = columns[7]?.querySelector('span[class^="mem-"]');
-    const cpu = cpuSpan ? cpuSpan.textContent.trim() : '';
-    const ram = memSpan ? memSpan.textContent.trim() : '';
+    const resCell = columns[7] || row.querySelector('td:nth-last-child(3)');
+    const cpu = resCell?.querySelector('span[class*="cpu"], .cpu')?.textContent?.trim() || '';
+    const ram = resCell?.querySelector('span[class*="mem"], .memory, .ram')?.textContent?.trim() || '';
 
-    const autostartLabel = columns[8]?.querySelector('.switch-button-label.on, .switch-button-label.off');
-    const autostart = autostartLabel ? autostartLabel.textContent.trim().toLowerCase() === 'on' : false;
+    const autostartLabel = row.querySelector('.switch-button-label.on, .switch-button-label.off, .autostart .on, .autostart .off');
+    const autostart = autostartLabel ? /on/i.test(autostartLabel.textContent || '') : false;
 
     let uptime = '', created = '';
-    const uptimeDiv = columns[9]?.querySelector('div');
+    const uptimeDiv = columns[9]?.querySelector('div') || row.querySelector('td:last-child div');
     if (uptimeDiv){
-      const text = uptimeDiv.textContent||'';
+      const text = uptimeDiv.textContent || '';
       const upMatch = text.match(/Uptime:\s*(.+)/i);
       const createdMatch = text.match(/Created:\s*(.+)/i);
       uptime = upMatch ? upMatch[1].trim() : '';
@@ -88,55 +112,29 @@
     return card;
   }
 
-  function buildCardsFromTable(){
-    const tbody = document.getElementById('docker_list');
-    const table = tbody?.parentElement;
-    if (!tbody || !table) return false;
-    const rows = Array.from(tbody.querySelectorAll('tr.sortable'));
-    if (rows.length === 0) return false;
-
-    const containers = rows.map(parseContainerRow).filter(Boolean);
-
-    // avoid duplicates
-    let cardList = table.nextElementSibling;
-    if (!(cardList && cardList.classList?.contains('docker-card-list'))){
-      cardList = document.createElement('div');
-      cardList.className = 'docker-card-list';
-      containers.forEach(c => cardList.appendChild(createCard(c)));
-      table.parentElement.insertBefore(cardList, table.nextSibling);
-      // add action bar with toggle
-      injectToggleBar(table, cardList);
-    }
-
-    // apply preferred view
-    const pref = localStorage.getItem('udmc-view') || 'cards';
-    setView(pref, table, cardList);
-    return true;
-  }
-
   function injectToggleBar(table, cardList){
     if (!table || !cardList) return;
-    // insert a small action bar above the table (once)
     const container = table.parentElement;
     if (!container) return;
-    const existing = container.querySelector('.udmc-actions');
-    if (existing) return;
-    const bar = document.createElement('div');
-    bar.className = 'udmc-actions';
-    bar.innerHTML = `
-      <span style="opacity:.8;margin-right:8px;">Vue:</span>
-      <button class="udmc-btn" data-view="cards">Cartes</button>
-      <button class="udmc-btn" data-view="table">Table</button>
-    `;
-    container.insertBefore(bar, table);
-    bar.addEventListener('click', (e)=>{
-      const btn = e.target.closest('button[data-view]');
-      if (!btn) return;
-      const v = btn.getAttribute('data-view');
-      localStorage.setItem('udmc-view', v);
-      setView(v, table, cardList);
-      highlightActive(bar, v);
-    });
+    let bar = container.querySelector('.udmc-actions');
+    if (!bar){
+      bar = document.createElement('div');
+      bar.className = 'udmc-actions';
+      bar.innerHTML = `
+        <span style="opacity:.8;margin-right:8px;">Vue:</span>
+        <button class="udmc-btn" data-view="cards">Cartes</button>
+        <button class="udmc-btn" data-view="table">Table</button>
+      `;
+      container.insertBefore(bar, table);
+      bar.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-view]');
+        if (!btn) return;
+        const v = btn.getAttribute('data-view');
+        localStorage.setItem('udmc-view', v);
+        setView(v, table, cardList);
+        highlightActive(bar, v);
+      });
+    }
     highlightActive(bar, localStorage.getItem('udmc-view') || 'cards');
   }
 
@@ -153,26 +151,48 @@
     });
   }
 
-  function init(){
-    // Run when DOM ready and also observe changes
-    const tryBuild = ()=>{
-      try {
-        const ok = buildCardsFromTable();
-        if (ok) return true;
-      } catch(e){ log('error building cards', e); }
-      return false;
-    };
+  function buildCardsFromTable(){
+    const tbody = findDockerTbody();
+    const table = tbody?.closest('table');
+    if (!tbody || !table) return false;
 
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.querySelector('td'));
+    if (rows.length === 0) return false;
+
+    const containers = rows.map(parseContainerRow).filter(Boolean);
+    const containerEl = table.parentElement;
+    if (!containerEl) return false;
+
+    let cardList = containerEl.querySelector('.docker-card-list');
+    if (cardList) cardList.remove();
+
+    cardList = document.createElement('div');
+    cardList.className = 'docker-card-list';
+    containers.forEach(c => cardList.appendChild(createCard(c)));
+    table.parentElement.insertBefore(cardList, table.nextSibling);
+
+    injectToggleBar(table, cardList);
+
+    const pref = localStorage.getItem('udmc-view') || 'cards';
+    setView(pref, table, cardList);
+    return true;
+  }
+
+  function init(){
+    console.log('UDMC init');
+    const tryBuild = ()=>{ try { return buildCardsFromTable(); } catch(e){ console.error('[DockerCards] build error', e); return false; } };
     if (!tryBuild()) setTimeout(tryBuild, 1200);
 
-    const obs = new MutationObserver((muts)=>{
-      for (const m of muts){
-        if (m.type === 'childList') {
-          if (tryBuild()) break;
-        }
-      }
-    });
+    const obs = new MutationObserver(()=>{ tryBuild(); });
     obs.observe(document.documentElement, {childList:true, subtree:true});
+
+    let attempts = 0;
+    const iv = setInterval(()=>{
+      if (tryBuild() || ++attempts > 20) clearInterval(iv);
+    }, 1500);
+
+    window.addEventListener('hashchange', tryBuild);
+    window.addEventListener('popstate', tryBuild);
   }
 
   if (document.readyState === 'loading') {
