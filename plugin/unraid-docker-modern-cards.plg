@@ -10,13 +10,11 @@
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
       <INLINE><![CDATA[
 <?php
-$uri = $_SERVER['REQUEST_URI'] ?? '';
-if (preg_match('~/(Docker)(?:/|\?|$)~i', $uri)) {
-  $pluginBase = '/plugins/unraid-docker-modern-cards';
-  echo "\n<!-- UDMC assets injected -->\n";
-  echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=3\">\n";
-  echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=3\" defer></script>\n";
-}
+// Injecter globalement: le Docker tab peut être chargé dynamiquement (sinon les assets ne seront jamais ajoutés)
+$pluginBase = '/plugins/unraid-docker-modern-cards';
+echo "\n<!-- UDMC assets injected (global) -->\n";
+echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=4\">\n";
+echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></script>\n";
 ?>
 ]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
