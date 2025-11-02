@@ -1,21 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE PLUGIN [
-  <!ELEMENT PLUGIN (AUTHOR, VERSION, CATEGORY, NAME, CHANGES, FILES)>
-  <!ELEMENT AUTHOR (#PCDATA)>
-  <!ELEMENT VERSION (#PCDATA)>
-  <!ELEMENT CATEGORY (#PCDATA)>
-  <!ELEMENT NAME (#PCDATA)>
-  <!ELEMENT CHANGES (#PCDATA)>
-  <!ELEMENT FILES (FILE+)>
-  <!ELEMENT FILE ((INLINE | URL), MD5?, PERMISSIONS?, RUN?)>
-  <!ELEMENT INLINE (#PCDATA)>
-  <!ELEMENT URL (#PCDATA)>
-  <!ELEMENT MD5 (#PCDATA)>
-  <!ELEMENT PERMISSIONS (#PCDATA)>
-  <!ELEMENT RUN (#PCDATA)>
-]>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="2025.10.28.1" category="GUI" min="6.10.0">
-  <AUTHOR>JamesDAdams</AUTHOR>
+  <AUTHOR>JamesDAdAMS</AUTHOR>
   <VERSION>2025.10.28.1</VERSION>
   <CATEGORY>GUI</CATEGORY>
   <NAME>Unraid Docker Modern Cards</NAME>
