@@ -10,11 +10,11 @@
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
       <INLINE><![CDATA[
 <?php
-// Injecter globalement: le Docker tab peut être chargé dynamiquement (sinon les assets ne seront jamais ajoutés)
 $pluginBase = '/plugins/unraid-docker-modern-cards';
 echo "\n<!-- UDMC assets injected (global) -->\n";
-echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=4\">\n";
-echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></script>\n";
+echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=5\">\n";
+echo "<script>window.UDMC_INCLUDED=true;console.log('[DockerCards] include loaded');</script>\n";
+echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=5\" defer></script>\n";
 ?>
 ]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
@@ -63,6 +63,29 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></scrip
 (function(){
   'use strict';
   const log = (...a)=>console.log('[DockerCards]',...a);
+
+  function findDockerTbody(){
+    const queries = [
+      'tbody#docker_list',
+      '#docker_list tbody',
+      'table#docker_list tbody',
+      'table#docker_table tbody',
+      'table[id*="docker"] tbody',
+      'table[data-view="docker"] tbody',
+      'table tbody#docker' // fallback
+    ];
+    for (const q of queries){
+      const el = document.querySelector(q);
+      if (el) return el;
+    }
+    // try to locate by header text
+    const tables = Array.from(document.querySelectorAll('table'));
+    for (const t of tables){
+      const headTxt = (t.querySelector('thead')?.textContent || '').toLowerCase();
+      if (headTxt.includes('docker')) return t.querySelector('tbody') || null;
+    }
+    return null;
+  }
 
   function parseContainerRow(row){
     const columns = row.querySelectorAll('td');
@@ -154,7 +177,7 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></scrip
   }
 
   function buildCardsFromTable(){
-    const tbody = document.querySelector('tbody#docker_list, #docker_list');
+    const tbody = findDockerTbody();
     const table = tbody?.closest('table');
     if (!tbody || !table) return false;
 
@@ -162,18 +185,19 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></scrip
     if (rows.length === 0) return false;
 
     const containers = rows.map(parseContainerRow).filter(Boolean);
-
     const containerEl = table.parentElement;
     if (!containerEl) return false;
 
+    // Nettoyage et reconstruction pour éviter la duplication
     let cardList = containerEl.querySelector('.docker-card-list');
-    if (!cardList){
-      cardList = document.createElement('div');
-      cardList.className = 'docker-card-list';
-      containers.forEach(c => cardList.appendChild(createCard(c)));
-      table.parentElement.insertBefore(cardList, table.nextSibling);
-      injectToggleBar(table, cardList);
-    }
+    if (cardList) cardList.remove();
+
+    cardList = document.createElement('div');
+    cardList.className = 'docker-card-list';
+    containers.forEach(c => cardList.appendChild(createCard(c)));
+    table.parentElement.insertBefore(cardList, table.nextSibling);
+
+    injectToggleBar(table, cardList);
 
     const pref = localStorage.getItem('udmc-view') || 'cards';
     setView(pref, table, cardList);
@@ -182,27 +206,27 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></scrip
 
   function injectToggleBar(table, cardList){
     if (!table || !cardList) return;
-    // insert a small action bar above the table (once)
     const container = table.parentElement;
     if (!container) return;
-    const existing = container.querySelector('.udmc-actions');
-    if (existing) return;
-    const bar = document.createElement('div');
-    bar.className = 'udmc-actions';
-    bar.innerHTML = `
-      <span style="opacity:.8;margin-right:8px;">Vue:</span>
-      <button class="udmc-btn" data-view="cards">Cartes</button>
-      <button class="udmc-btn" data-view="table">Table</button>
-    `;
-    container.insertBefore(bar, table);
-    bar.addEventListener('click', (e)=>{
-      const btn = e.target.closest('button[data-view]');
-      if (!btn) return;
-      const v = btn.getAttribute('data-view');
-      localStorage.setItem('udmc-view', v);
-      setView(v, table, cardList);
-      highlightActive(bar, v);
-    });
+    let bar = container.querySelector('.udmc-actions');
+    if (!bar){
+      bar = document.createElement('div');
+      bar.className = 'udmc-actions';
+      bar.innerHTML = `
+        <span style="opacity:.8;margin-right:8px;">Vue:</span>
+        <button class="udmc-btn" data-view="cards">Cartes</button>
+        <button class="udmc-btn" data-view="table">Table</button>
+      `;
+      container.insertBefore(bar, table);
+      bar.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-view]');
+        if (!btn) return;
+        const v = btn.getAttribute('data-view');
+        localStorage.setItem('udmc-view', v);
+        setView(v, table, cardList);
+        highlightActive(bar, v);
+      });
+    }
     highlightActive(bar, localStorage.getItem('udmc-view') || 'cards');
   }
 
@@ -219,25 +243,23 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=4\" defer></scrip
     });
   }
 
+  function tryBuildSafe(){
+    try { return buildCardsFromTable(); }
+    catch(e){ console.error('[DockerCards] build error', e); return false; }
+  }
+
   function init(){
-    const tryBuild = ()=>{
-      try {
-        const ok = buildCardsFromTable();
-        if (ok) return true;
-      } catch(e){ log('error building cards', e); }
-      return false;
-    };
+    log('script loaded, include=', !!window.UDMC_INCLUDED);
+    if (!tryBuildSafe()) setTimeout(tryBuildSafe, 1200);
 
-    if (!tryBuild()) setTimeout(tryBuild, 1200);
-
-    const obs = new MutationObserver((muts)=>{
-      for (const m of muts){
-        if (m.type === 'childList') {
-          if (tryBuild()) break;
-        }
-      }
+    const obs = new MutationObserver(()=>{
+      tryBuildSafe();
     });
     obs.observe(document.documentElement, {childList:true, subtree:true});
+
+    // Re-tester lors des navigations internes éventuelles
+    window.addEventListener('hashchange', tryBuildSafe);
+    window.addEventListener('popstate', tryBuildSafe);
   }
 
   if (document.readyState === 'loading') {
