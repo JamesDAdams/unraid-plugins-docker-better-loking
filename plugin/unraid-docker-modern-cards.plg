@@ -23,7 +23,8 @@
   <FILES>
     <!-- Include hook to inject assets on Docker page -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
-      <INLINE><?php
+      <INLINE><![CDATA[
+<?php
 /* Inject assets on Docker page */
 $uri = $_SERVER['REQUEST_URI'] ?? '';
 if (strpos($uri, '/Docker') !== false) {
@@ -31,7 +32,8 @@ if (strpos($uri, '/Docker') !== false) {
   echo "\n<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=2\">\n";
   echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=2\" defer></script>\n";
 }
-?></INLINE>
+?>
+]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
