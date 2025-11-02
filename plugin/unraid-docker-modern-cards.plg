@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.2" category="GUI" min="6.10.0">
+<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.4" category="GUI" min="6.10.0">
   <AUTHOR>JamesDAdAMS</AUTHOR>
-  <VERSION>1.0.2</VERSION>
+  <VERSION>1.0.4</VERSION>
   <CATEGORY>GUI</CATEGORY>
   <NAME>Unraid Docker Modern Cards</NAME>
   <CHANGES>Initial release converting Tampermonkey script into native plugin</CHANGES>
   <FILES>
-    <!-- Include hook to inject assets on Docker page -->
+    <!-- Include hook to inject assets on all pages -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
       <INLINE><![CDATA[
 <?php
 $pluginBase = '/plugins/unraid-docker-modern-cards';
-echo "\n<!-- UDMC assets injected (global) -->\n";
-echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=5\">\n";
-echo "<script>window.UDMC_INCLUDED=true;console.log('[DockerCards] include loaded');</script>\n";
-echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=5\" defer></script>\n";
+error_log('UDMC 1.0.4: include executed, injecting assets v7');
+echo "\n<!-- UDMC assets injected (global v7) -->\n";
+echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=7\">\n";
+echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=7\" defer></script>\n";
 ?>
 ]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
@@ -243,23 +243,26 @@ echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=5\" defer></scrip
     });
   }
 
-  function tryBuildSafe(){
-    try { return buildCardsFromTable(); }
-    catch(e){ console.error('[DockerCards] build error', e); return false; }
-  }
-
   function init(){
-    log('script loaded, include=', !!window.UDMC_INCLUDED);
-    if (!tryBuildSafe()) setTimeout(tryBuildSafe, 1200);
+    log('script loaded');
+    const tryBuild = ()=>{ try { return buildCardsFromTable(); } catch(e){ console.error('[DockerCards] build error', e); return false; } };
 
-    const obs = new MutationObserver(()=>{
-      tryBuildSafe();
-    });
+    // 1) tentative immédiate
+    if (!tryBuild()) setTimeout(tryBuild, 1200);
+
+    // 2) observer les mutations globales
+    const obs = new MutationObserver(()=>{ tryBuild(); });
     obs.observe(document.documentElement, {childList:true, subtree:true});
 
-    // Re-tester lors des navigations internes éventuelles
-    window.addEventListener('hashchange', tryBuildSafe);
-    window.addEventListener('popstate', tryBuildSafe);
+    // 3) retry périodique borné (au cas où ni DOMContentLoaded ni mutations ne suffisent)
+    let attempts = 0;
+    const iv = setInterval(()=>{
+      if (tryBuild() || ++attempts > 20) clearInterval(iv);
+    }, 1500);
+
+    // 4) navigations internes
+    window.addEventListener('hashchange', tryBuild);
+    window.addEventListener('popstate', tryBuild);
   }
 
   if (document.readyState === 'loading') {
