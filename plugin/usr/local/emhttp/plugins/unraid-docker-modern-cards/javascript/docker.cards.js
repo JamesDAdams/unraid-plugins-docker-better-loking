@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  console.log('[DockerCards] UDMC JS v12 loaded');
+  console.log('[DockerCards] UDMC JS v13 loaded');
 
   function findDockerTbody(){
     const queries = [

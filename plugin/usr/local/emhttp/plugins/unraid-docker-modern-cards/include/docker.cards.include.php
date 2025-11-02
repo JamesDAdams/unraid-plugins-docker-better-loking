@@ -5,7 +5,7 @@
 $uri = $_SERVER['REQUEST_URI'] ?? '';
 $onDocker = stripos($uri, '/docker') !== false;
 $pluginBase = '/plugins/unraid-docker-modern-cards';
-$ver = '12';
+$ver = '13';
 
 error_log(sprintf('UDMC include: uri=%s onDocker=%s v%s', $uri, $onDocker ? '1' : '0', $ver));
 
