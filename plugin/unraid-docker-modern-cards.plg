@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="2025.10.28.1" category="GUI" min="6.10.0">
+<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.1" category="GUI" min="6.10.0">
   <AUTHOR>JamesDAdAMS</AUTHOR>
   <VERSION>1.0.1</VERSION>
   <CATEGORY>GUI</CATEGORY>
