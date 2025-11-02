@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.6" category="GUI" min="6.10.0">
+<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="1.0.7" category="GUI" min="6.10.0">
   <AUTHOR>JamesDAdAMS</AUTHOR>
-  <VERSION>1.0.6</VERSION>
+  <VERSION>1.0.7</VERSION>
   <CATEGORY>GUI</CATEGORY>
   <NAME>Unraid Docker Modern Cards</NAME>
   <CHANGES>Initial release converting Tampermonkey script into native plugin</CHANGES>
@@ -11,45 +11,40 @@
       <INLINE><![CDATA[
 <?php
 $pluginBase = '/plugins/unraid-docker-modern-cards';
-error_log('UDMC 1.0.6: include executed, injecting assets v9');
-echo "\n<!-- UDMC assets injected (global v9) -->\n";
-echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=9\">\n";
-echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=9\" defer></script>\n";
+error_log('UDMC 1.0.7: include executed, injecting assets v10');
+echo "\n<!-- UDMC assets injected (global v10) -->\n";
+echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=10\">\n";
+echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=10\" defer></script>\n";
 ?>
 ]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
     <!-- Hook d’install: logs + listing des dossiers du plugin -->
-    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/.udmc-install-1.0.6">
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/.udmc-install-1.0.7">
       <INLINE>installed</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
       <RUN>
-logger -t UDMC "Installing UDMC 1.0.6"
+logger -t UDMC "Installing UDMC 1.0.7"
 if [ -d /usr/local/emhttp/plugins/unraid-docker-modern-cards ]; then
   logger -t UDMC "Listing /usr/local/emhttp/plugins/unraid-docker-modern-cards"
   ls -la /usr/local/emhttp/plugins/unraid-docker-modern-cards | logger -t UDMC
-  if [ -d /usr/local/emhttp/plugins/unraid-docker-modern-cards/include ]; then
-    logger -t UDMC "Listing include/"
-    ls -la /usr/local/emhttp/plugins/unraid-docker-modern-cards/include | logger -t UDMC
-  fi
-  if [ -d /usr/local/emhttp/plugins/unraid-docker-modern-cards/javascript ]; then
-    logger -t UDMC "Listing javascript/"
-    ls -la /usr/local/emhttp/plugins/unraid-docker-modern-cards/javascript | logger -t UDMC
-  fi
-  if [ -d /usr/local/emhttp/plugins/unraid-docker-modern-cards/css ]; then
-    logger -t UDMC "Listing css/"
-    ls -la /usr/local/emhttp/plugins/unraid-docker-modern-cards/css | logger -t UDMC
-  fi
+  for d in include javascript css; do
+    if [ -d "/usr/local/emhttp/plugins/unraid-docker-modern-cards/$d" ]; then
+      logger -t UDMC "Listing $d/"
+      ls -la "/usr/local/emhttp/plugins/unraid-docker-modern-cards/$d" | logger -t UDMC
+    fi
+  done
 fi
       </RUN>
     </FILE>
 
-    <!-- Diagnostics: page test accessible via le navigateur -->
-    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/version.txt">
-      <INLINE>UDMC version=1.0.6 cache=v9</INLINE>
+    <!-- Diagnostics -->
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/ping.txt">
+      <INLINE>UDMC ping ok; version=1.0.7; cache=v10</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
+    <!-- Diagnostics: page test accessible via le navigateur -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/diag.html">
       <INLINE><![CDATA[
 <!doctype html><meta charset="utf-8">
@@ -59,6 +54,10 @@ fi
   <p>Plugin web path ok. Version file: <a href="./version.txt">version.txt</a></p>
 </body>
 ]]></INLINE>
+      <PERMISSIONS>0644</PERMISSIONS>
+    </FILE>
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/version.txt">
+      <INLINE>UDMC version=1.0.7 cache=v10</INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
@@ -104,7 +103,7 @@ fi
       <INLINE><![CDATA[
 (function(){
   'use strict';
-  console.log('[DockerCards] UDMC JS v9 loaded');
+  console.log('[DockerCards] UDMC JS v10 loaded');
 
   function findDockerTbody(){
     const queries = [
