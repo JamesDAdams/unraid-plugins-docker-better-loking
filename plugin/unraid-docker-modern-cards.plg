@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE PLUGIN [
+  <!ELEMENT PLUGIN (AUTHOR, VERSION, CATEGORY, NAME, CHANGES, FILES)>
+  <!ELEMENT AUTHOR (#PCDATA)>
+  <!ELEMENT VERSION (#PCDATA)>
+  <!ELEMENT CATEGORY (#PCDATA)>
+  <!ELEMENT NAME (#PCDATA)>
+  <!ELEMENT CHANGES (#PCDATA)>
+  <!ELEMENT FILES (FILE+)>
+  <!ELEMENT FILE (INLINE|URL, MD5?, PERMISSIONS?, RUN?)>
+  <!ELEMENT INLINE (#PCDATA)>
+  <!ELEMENT URL (#PCDATA)>
+  <!ELEMENT MD5 (#PCDATA)>
+  <!ELEMENT PERMISSIONS (#PCDATA)>
+  <!ELEMENT RUN (#PCDATA)>
+]>
+<PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="2025.10.28.1" category="GUI" min="6.10.0">
+  <AUTHOR>JamesDAdams</AUTHOR>
+  <VERSION>2025.10.28.1</VERSION>
+  <CATEGORY>GUI</CATEGORY>
+  <NAME>Unraid Docker Modern Cards</NAME>
+  <CHANGES>Initial release converting Tampermonkey script into native plugin</CHANGES>
+  <FILES>
+    <!-- Include hook to inject assets on Docker page -->
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
+      <INLINE><?php
+/* Inject assets on Docker page */
+$uri = $_SERVER['REQUEST_URI'] ?? '';
+if (strpos($uri, '/Docker') !== false) {
+  $pluginBase = '/plugins/unraid-docker-modern-cards';
+  echo "\n<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=2\">\n";
+  echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=2\" defer></script>\n";
+}
+?></INLINE>
+      <PERMISSIONS>0644</PERMISSIONS>
+    </FILE>
+
+    <!-- CSS -->
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/css/docker.cards.css">
+      <INLINE>/* Unraid Docker Modern Cards - styles */
+.docker-card-list { display:flex; flex-wrap:wrap; gap:24px; margin:32px 0; justify-content:flex-start; }
+.docker-card { background:#181c21; color:#e2e8f0; border-radius:16px; box-shadow:0 4px 16px #0003; min-width:360px; max-width:390px; flex:1 1 360px; padding:24px 24px 18px 24px; display:flex; flex-direction:column; position:relative; font-family:'Inter','Segoe UI',Arial,sans-serif; border:2px solid #253251; transition:border-color .2s; }
+.docker-card[data-status="up-to-date"]{ border-color:#426f46; }
+.docker-card[data-status="not available"]{ border-color:#a58c2b; }
+.docker-card[data-status="other"]{ border-color:#343a40; }
+.docker-card .card-header{ display:flex; align-items:center; margin-bottom:8px; }
+.docker-card .app-logo{ width:36px; height:36px; border-radius:7px; object-fit:contain; margin-right:16px; background:#23272e; border:1px solid #23272e; }
+.docker-card .card-title{ font-size:1.22em; font-weight:700; margin-right:8px; color:#fff; margin-top:2px; }
+.docker-card .badge{ font-size:.98em; font-weight:500; border-radius:6px; padding:3px 12px; margin-left:auto; background:#253251; color:#e2e8f0; }
+.docker-card[data-status="up-to-date"] .badge{ background:#294e33; color:#b8e6b4; }
+.docker-card[data-status="not available"] .badge{ background:#665c1a; color:#ffe680; }
+.docker-card[data-status="other"] .badge{ background:#343a40; color:#e2e8f0; }
+.docker-card .card-state{ font-size:1.05em; color:#50fa7b; display:flex; align-items:center; margin-bottom:10px; }
+.docker-card .card-state .fa-play{ color:#50fa7b; margin-right:8px; }
+.docker-card[data-status="not available"] .card-state .fa-play{ color:#ffe680 !important; }
+.docker-card .card-state .fa-stop{ color:#ff4136; margin-right:8px; }
+.docker-card .card-body{ margin-bottom:12px; font-size:1.02em; line-height:1.7; }
+.docker-card .card-body div{ display:flex; justify-content:space-between; margin-bottom:1px; }
+.docker-card .card-body strong{ color:#b6c2e0; font-weight:500; }
+.docker-card .card-sep{ height:1px; background:#253251; margin:9px 0 8px 0; border-radius:3px; opacity:.65; }
+.docker-card .card-footer{ display:flex; flex-direction:column; gap:2px; margin-top:8px; font-size:.98em; color:#b6c2e0; }
+.docker-card .card-footer span{ display:flex; justify-content:space-between; }
+.docker-card .autostart{ font-weight:700; color:#ff4136; }
+.docker-card[data-autostart="on"] .autostart{ color:#4ae84a; }
+
+/* Action bar */
+.udmc-actions{ display:flex; align-items:center; gap:6px; margin:8px 0 12px; }
+.udmc-btn{ background:#253251; color:#e2e8f0; border:1px solid #253251; border-radius:6px; padding:4px 10px; cursor:pointer; font:inherit; }
+.udmc-btn.active{ background:#2f3c5e; border-color:#3c4b76; }
+</INLINE>
+      <PERMISSIONS>0644</PERMISSIONS>
+    </FILE>
+
+    <!-- JS -->
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/javascript/docker.cards.js">
+      <INLINE><![CDATA[
+(function(){
+  'use strict';
+  const log = (...a)=>console.debug('[DockerCards]',...a);
+
+  function parseContainerRow(row){
+    const columns = row.querySelectorAll('td');
+    if (!columns || columns.length < 10) return null;
+    const appCell = columns[0];
+    const img = appCell.querySelector('img');
+    const logo = img ? img.src : '';
+    const nameLink = appCell.querySelector('.appname a');
+    const name = nameLink ? nameLink.textContent.trim() : (appCell.textContent||'').trim();
+    const stateText = appCell.querySelector('.state');
+    const state = stateText ? stateText.textContent.trim() : '';
+
+    let updateText = 'other';
+    const updateSpan = columns[1] && columns[1].querySelector('span');
+    if (updateSpan) updateText = (updateSpan.textContent||'').trim().toLowerCase();
+
+    const network = (columns[2]?.textContent||'').trim();
+    const ip = (columns[3]?.textContent||'').trim();
+    const port = (columns[4]?.textContent||'').trim();
+
+    const cpuSpan = columns[7]?.querySelector('span[class^="cpu-"]');
+    const memSpan = columns[7]?.querySelector('span[class^="mem-"]');
+    const cpu = cpuSpan ? cpuSpan.textContent.trim() : '';
+    const ram = memSpan ? memSpan.textContent.trim() : '';
+
+    const autostartLabel = columns[8]?.querySelector('.switch-button-label.on, .switch-button-label.off');
+    const autostart = autostartLabel ? autostartLabel.textContent.trim().toLowerCase() === 'on' : false;
+
+    let uptime = '', created = '';
+    const uptimeDiv = columns[9]?.querySelector('div');
+    if (uptimeDiv){
+      const text = uptimeDiv.textContent||'';
+      const upMatch = text.match(/Uptime:\s*(.+)/i);
+      const createdMatch = text.match(/Created:\s*(.+)/i);
+      uptime = upMatch ? upMatch[1].trim() : '';
+      created = createdMatch ? createdMatch[1].trim() : '';
+    }
+
+    return {name, logo, state, updateText, network, ip, port, cpu, ram, autostart, uptime, created};
+  }
+
+  function createCard(container){
+    let status = 'other';
+    if (container.updateText.includes('up-to-date')) status = 'up-to-date';
+    else if (container.updateText.includes('not available')) status = 'not available';
+
+    let stateIcon = '<i class="fa fa-play"></i>';
+    let stateText = 'Running';
+    if (container.state && container.state.toLowerCase().includes('started')) {
+      stateIcon = '<i class="fa fa-play"></i>';
+      stateText = 'Running';
+    } else {
+      stateIcon = '<i class="fa fa-stop"></i>';
+      stateText = 'Stopped';
+    }
+
+    const autoText = container.autostart ? 'ON' : 'OFF';
+
+    const card = document.createElement('div');
+    card.className = 'docker-card';
+    card.setAttribute('data-status', status);
+    card.setAttribute('data-autostart', container.autostart ? 'on' : 'off');
+
+    card.innerHTML = `
+      <div class="card-header">
+        <img class="app-logo" src="${container.logo}" alt="${container.name}">
+        <span class="card-title">${container.name}</span>
+        <span class="badge">${container.updateText}</span>
+      </div>
+      <div class="card-state">${stateIcon} ${stateText}</div>
+      <div class="card-body">
+        <div><strong>Network:</strong> <span>${container.network}</span></div>
+        <div><strong>IP:</strong> <span>${container.ip}</span></div>
+        <div><strong>Port:</strong> <span>${container.port}</span></div>
+        <div class="card-sep"></div>
+        <div><strong>CPU:</strong> <span>${container.cpu}</span></div>
+        <div><strong>RAM:</strong> <span>${container.ram}</span></div>
+      </div>
+      <div class="card-footer">
+        <span><strong>Uptime:</strong> <span>${container.uptime}</span></span>
+        <span><strong>Created:</strong> <span>${container.created}</span></span>
+        <span><strong>Autostart:</strong> <span class="autostart">${autoText}</span></span>
+      </div>
+    `;
+    return card;
+  }
+
+  function buildCardsFromTable(){
+    const tbody = document.getElementById('docker_list');
+    const table = tbody?.parentElement;
+    if (!tbody || !table) return false;
+    const rows = Array.from(tbody.querySelectorAll('tr.sortable'));
+    if (rows.length === 0) return false;
+
+    const containers = rows.map(parseContainerRow).filter(Boolean);
+
+    // avoid duplicates
+    let cardList = table.nextElementSibling;
+    if (!(cardList && cardList.classList?.contains('docker-card-list'))){
+      cardList = document.createElement('div');
+      cardList.className = 'docker-card-list';
+      containers.forEach(c => cardList.appendChild(createCard(c)));
+      table.parentElement.insertBefore(cardList, table.nextSibling);
+      // add action bar with toggle
+      injectToggleBar(table, cardList);
+    }
+
+    // apply preferred view
+    const pref = localStorage.getItem('udmc-view') || 'cards';
+    setView(pref, table, cardList);
+    return true;
+  }
+
+  function injectToggleBar(table, cardList){
+    if (!table || !cardList) return;
+    // insert a small action bar above the table (once)
+    const container = table.parentElement;
+    if (!container) return;
+    const existing = container.querySelector('.udmc-actions');
+    if (existing) return;
+    const bar = document.createElement('div');
+    bar.className = 'udmc-actions';
+    bar.innerHTML = `
+      <span style="opacity:.8;margin-right:8px;">Vue:</span>
+      <button class="udmc-btn" data-view="cards">Cartes</button>
+      <button class="udmc-btn" data-view="table">Table</button>
+    `;
+    container.insertBefore(bar, table);
+    bar.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-view]');
+      if (!btn) return;
+      const v = btn.getAttribute('data-view');
+      localStorage.setItem('udmc-view', v);
+      setView(v, table, cardList);
+      highlightActive(bar, v);
+    });
+    highlightActive(bar, localStorage.getItem('udmc-view') || 'cards');
+  }
+
+  function setView(view, table, cardList){
+    const showCards = view !== 'table';
+    if (table) table.style.display = showCards ? 'none' : '';
+    if (cardList) cardList.style.display = showCards ? '' : 'none';
+  }
+
+  function highlightActive(bar, active){
+    bar.querySelectorAll('button[data-view]').forEach(b=>{
+      if (b.getAttribute('data-view') === active) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+  }
+
+  function init(){
+    // Run when DOM ready and also observe changes
+    const tryBuild = ()=>{
+      try {
+        const ok = buildCardsFromTable();
+        if (ok) return true;
+      } catch(e){ log('error building cards', e); }
+      return false;
+    };
+
+    if (!tryBuild()) setTimeout(tryBuild, 1200);
+
+    const obs = new MutationObserver((muts)=>{
+      for (const m of muts){
+        if (m.type === 'childList') {
+          if (tryBuild()) break;
+        }
+      }
+    });
+    obs.observe(document.documentElement, {childList:true, subtree:true});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+]]></INLINE>
+      <PERMISSIONS>0644</PERMISSIONS>
+    </FILE>
+
+    <!-- Register include so it is loaded by webGUI header -->
+    <FILE Name="/boot/config/plugins/unraid-docker-modern-cards.cfg">
+      <INLINE>enabled="yes"</INLINE>
+      <PERMISSIONS>0644</PERMISSIONS>
+    </FILE>
+
+    <!-- Hook: the webgui automatically loads all plugin includes under /usr/local/emhttp/plugins/*/include/*.php via header.php -->
+  </FILES>
+</PLUGIN>
