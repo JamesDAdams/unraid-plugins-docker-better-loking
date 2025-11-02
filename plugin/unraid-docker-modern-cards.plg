@@ -37,7 +37,8 @@ if (strpos($uri, '/Docker') !== false) {
 
     <!-- CSS -->
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/css/docker.cards.css">
-      <INLINE>/* Unraid Docker Modern Cards - styles */
+      <INLINE><![CDATA[
+/* Unraid Docker Modern Cards - styles */
 .docker-card-list { display:flex; flex-wrap:wrap; gap:24px; margin:32px 0; justify-content:flex-start; }
 .docker-card { background:#181c21; color:#e2e8f0; border-radius:16px; box-shadow:0 4px 16px #0003; min-width:360px; max-width:390px; flex:1 1 360px; padding:24px 24px 18px 24px; display:flex; flex-direction:column; position:relative; font-family:'Inter','Segoe UI',Arial,sans-serif; border:2px solid #253251; transition:border-color .2s; }
 .docker-card[data-status="up-to-date"]{ border-color:#426f46; }
@@ -67,12 +68,11 @@ if (strpos($uri, '/Docker') !== false) {
 .udmc-actions{ display:flex; align-items:center; gap:6px; margin:8px 0 12px; }
 .udmc-btn{ background:#253251; color:#e2e8f0; border:1px solid #253251; border-radius:6px; padding:4px 10px; cursor:pointer; font:inherit; }
 .udmc-btn.active{ background:#2f3c5e; border-color:#3c4b76; }
-</INLINE>
+]]></INLINE>
       <PERMISSIONS>0644</PERMISSIONS>
     </FILE>
 
     <!-- JS -->
-    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/javascript/docker.cards.js">
       <INLINE><![CDATA[
 (function(){
   'use strict';
