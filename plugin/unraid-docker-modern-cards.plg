@@ -7,7 +7,7 @@
   <!ELEMENT NAME (#PCDATA)>
   <!ELEMENT CHANGES (#PCDATA)>
   <!ELEMENT FILES (FILE+)>
-  <!ELEMENT FILE (INLINE|URL, MD5?, PERMISSIONS?, RUN?)>
+  <!ELEMENT FILE ((INLINE | URL), MD5?, PERMISSIONS?, RUN?)>
   <!ELEMENT INLINE (#PCDATA)>
   <!ELEMENT URL (#PCDATA)>
   <!ELEMENT MD5 (#PCDATA)>
@@ -73,6 +73,7 @@ if (strpos($uri, '/Docker') !== false) {
     </FILE>
 
     <!-- JS -->
+    <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/javascript/docker.cards.js">
       <INLINE><![CDATA[
 (function(){
   'use strict';
