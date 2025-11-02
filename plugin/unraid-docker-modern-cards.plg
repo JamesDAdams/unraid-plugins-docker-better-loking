@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <PLUGIN name="unraid-docker-modern-cards" author="JamesDAdams" version="2025.10.28.1" category="GUI" min="6.10.0">
   <AUTHOR>JamesDAdAMS</AUTHOR>
-  <VERSION>2025.10.28.1</VERSION>
+  <VERSION>1.0.1</VERSION>
   <CATEGORY>GUI</CATEGORY>
   <NAME>Unraid Docker Modern Cards</NAME>
   <CHANGES>Initial release converting Tampermonkey script into native plugin</CHANGES>
@@ -10,12 +10,12 @@
     <FILE Name="/usr/local/emhttp/plugins/unraid-docker-modern-cards/include/docker.cards.include.php">
       <INLINE><![CDATA[
 <?php
-/* Inject assets on Docker page */
 $uri = $_SERVER['REQUEST_URI'] ?? '';
-if (strpos($uri, '/Docker') !== false) {
+if (preg_match('~/(Docker)(?:/|\?|$)~i', $uri)) {
   $pluginBase = '/plugins/unraid-docker-modern-cards';
-  echo "\n<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=2\">\n";
-  echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=2\" defer></script>\n";
+  echo "\n<!-- UDMC assets injected -->\n";
+  echo "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$pluginBase}/css/docker.cards.css?v=3\">\n";
+  echo "<script src=\"{$pluginBase}/javascript/docker.cards.js?v=3\" defer></script>\n";
 }
 ?>
 ]]></INLINE>
@@ -64,39 +64,42 @@ if (strpos($uri, '/Docker') !== false) {
       <INLINE><![CDATA[
 (function(){
   'use strict';
-  const log = (...a)=>console.debug('[DockerCards]',...a);
+  const log = (...a)=>console.log('[DockerCards]',...a);
 
   function parseContainerRow(row){
     const columns = row.querySelectorAll('td');
-    if (!columns || columns.length < 10) return null;
-    const appCell = columns[0];
+    if (!columns || columns.length === 0) return null;
+
+    const appCell = columns[0] || row.querySelector('td');
+    if (!appCell) return null;
+
     const img = appCell.querySelector('img');
-    const logo = img ? img.src : '';
-    const nameLink = appCell.querySelector('.appname a');
-    const name = nameLink ? nameLink.textContent.trim() : (appCell.textContent||'').trim();
-    const stateText = appCell.querySelector('.state');
-    const state = stateText ? stateText.textContent.trim() : '';
+    const logo = img?.src || '';
+    const nameLink = appCell.querySelector('.appname a, a[href^="/docker/"], a');
+    const name = (nameLink?.textContent || appCell.textContent || '').trim();
+
+    const stateEl = appCell.querySelector('.state, .status, .started, .stopped') || row.querySelector('.state, .status');
+    const state = (stateEl?.textContent || '').trim();
 
     let updateText = 'other';
-    const updateSpan = columns[1] && columns[1].querySelector('span');
-    if (updateSpan) updateText = (updateSpan.textContent||'').trim().toLowerCase();
+    const updateEl = columns[1]?.querySelector('span, i, .label') || row.querySelector('[data-status], .label.update, td:nth-child(2) span');
+    if (updateEl) updateText = (updateEl.textContent || '').trim().toLowerCase();
 
-    const network = (columns[2]?.textContent||'').trim();
-    const ip = (columns[3]?.textContent||'').trim();
-    const port = (columns[4]?.textContent||'').trim();
+    const network = (columns[2]?.textContent || '').trim();
+    const ip = (columns[3]?.textContent || '').trim();
+    const port = (columns[4]?.textContent || '').trim();
 
-    const cpuSpan = columns[7]?.querySelector('span[class^="cpu-"]');
-    const memSpan = columns[7]?.querySelector('span[class^="mem-"]');
-    const cpu = cpuSpan ? cpuSpan.textContent.trim() : '';
-    const ram = memSpan ? memSpan.textContent.trim() : '';
+    const resCell = columns[7] || row.querySelector('td:nth-last-child(3)');
+    const cpu = resCell?.querySelector('span[class*="cpu"], .cpu')?.textContent?.trim() || '';
+    const ram = resCell?.querySelector('span[class*="mem"], .memory, .ram')?.textContent?.trim() || '';
 
-    const autostartLabel = columns[8]?.querySelector('.switch-button-label.on, .switch-button-label.off');
-    const autostart = autostartLabel ? autostartLabel.textContent.trim().toLowerCase() === 'on' : false;
+    const autostartLabel = row.querySelector('.switch-button-label.on, .switch-button-label.off, .autostart .on, .autostart .off');
+    const autostart = autostartLabel ? /on/i.test(autostartLabel.textContent || '') : false;
 
     let uptime = '', created = '';
-    const uptimeDiv = columns[9]?.querySelector('div');
+    const uptimeDiv = columns[9]?.querySelector('div') || row.querySelector('td:last-child div');
     if (uptimeDiv){
-      const text = uptimeDiv.textContent||'';
+      const text = uptimeDiv.textContent || '';
       const upMatch = text.match(/Uptime:\s*(.+)/i);
       const createdMatch = text.match(/Created:\s*(.+)/i);
       uptime = upMatch ? upMatch[1].trim() : '';
@@ -153,26 +156,27 @@ if (strpos($uri, '/Docker') !== false) {
   }
 
   function buildCardsFromTable(){
-    const tbody = document.getElementById('docker_list');
-    const table = tbody?.parentElement;
+    const tbody = document.querySelector('tbody#docker_list, #docker_list');
+    const table = tbody?.closest('table');
     if (!tbody || !table) return false;
-    const rows = Array.from(tbody.querySelectorAll('tr.sortable'));
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => tr.querySelector('td'));
     if (rows.length === 0) return false;
 
     const containers = rows.map(parseContainerRow).filter(Boolean);
 
-    // avoid duplicates
-    let cardList = table.nextElementSibling;
-    if (!(cardList && cardList.classList?.contains('docker-card-list'))){
+    const containerEl = table.parentElement;
+    if (!containerEl) return false;
+
+    let cardList = containerEl.querySelector('.docker-card-list');
+    if (!cardList){
       cardList = document.createElement('div');
       cardList.className = 'docker-card-list';
       containers.forEach(c => cardList.appendChild(createCard(c)));
       table.parentElement.insertBefore(cardList, table.nextSibling);
-      // add action bar with toggle
       injectToggleBar(table, cardList);
     }
 
-    // apply preferred view
     const pref = localStorage.getItem('udmc-view') || 'cards';
     setView(pref, table, cardList);
     return true;
@@ -218,7 +222,6 @@ if (strpos($uri, '/Docker') !== false) {
   }
 
   function init(){
-    // Run when DOM ready and also observe changes
     const tryBuild = ()=>{
       try {
         const ok = buildCardsFromTable();
